@@ -130,3 +130,15 @@ void Test2()
         pDacl3,     // should not be flagged
         FALSE);
 }
+
+void Test3()
+{
+    PSECURITY_DESCRIPTOR pSecurityDescriptor;
+
+    PACL pDacl = NULL;
+    SetSecurityDescriptorDacl(
+        pSecurityDescriptor,
+        FALSE,      // Dacl is not Present
+        pDacl,      // DACL is going to be removed from security descriptor. Default/inherited access ==> should not be flagged
+        FALSE);
+}
