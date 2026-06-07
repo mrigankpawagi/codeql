@@ -10,6 +10,7 @@ private import semmle.python.Concepts
 private import semmle.python.dataflow.new.RemoteFlowSources
 private import semmle.python.dataflow.new.BarrierGuards
 private import semmle.python.frameworks.data.ModelsAsData
+private import semmle.python.ApiGraphs
 
 /**
  * Provides default sources, sinks and sanitizers for detecting
@@ -33,6 +34,40 @@ module LogInjection {
   abstract class Sanitizer extends DataFlow::Node { }
 
   /**
+   * Holds if `arg` is an argument to a logging call that is formatted using `%r`
+   * in the format string, meaning `repr()` will be applied to it by the logging
+   * framework, which escapes special characters such as newlines.
+   */
+  private predicate isReprFormattedLoggingArg(DataFlow::Node arg) {
+    exists(DataFlow::CallCfgNode call, int msgIndex, int argIdx, string fmtStr |
+      // The call is a logging call
+      call instanceof Logging::Range and
+      arg = call.getArg(argIdx) and
+      (
+        // For standard logging methods (debug, info, warning, etc.), msgIndex = 0
+        call.(DataFlow::MethodCallNode).getMethodName() in [
+            "critical", "fatal", "error", "warning", "warn", "info", "debug", "exception"
+          ] and
+        msgIndex = 0
+        or
+        // For logging.log(level, msg, ...), msgIndex = 1
+        call.(DataFlow::MethodCallNode).getMethodName() = "log" and
+        msgIndex = 1
+        or
+        // For module-level logging.info(...) etc., msgIndex = 0
+        not call instanceof DataFlow::MethodCallNode and
+        msgIndex = 0
+      ) and
+      // arg is a positional argument after the format string
+      argIdx > msgIndex and
+      // The format string is a string literal
+      fmtStr = call.getArg(msgIndex).asExpr().(StringLiteral).getText() and
+      // The format specifier at position (argIdx - msgIndex - 1) is %r
+      fmtStr.regexpFind("%[a-zA-Z]", argIdx - msgIndex - 1, _) = "%r"
+    )
+  }
+
+  /**
    * DEPRECATED: Use `ActiveThreatModelSource` from Concepts instead!
    */
   deprecated class RemoteFlowSourceAsSource = ActiveThreatModelSourceAsSource;
@@ -48,6 +83,9 @@ module LogInjection {
   class LoggingAsSink extends Sink {
     LoggingAsSink() {
       this = any(Logging write).getAnInput() and
+      // Exclude arguments that are formatted with %r in the format string,
+      // since %r applies repr() which escapes special characters like newlines.
+      not isReprFormattedLoggingArg(this) and
       // since the inner implementation of the `logging.Logger.warn` function is
       // ```py
       // class Logger:
@@ -112,5 +150,15 @@ module LogInjection {
    */
   class SanitizerFromModel extends Sanitizer {
     SanitizerFromModel() { ModelOutput::barrierNode(this, "log-injection") }
+  }
+
+  /**
+   * A call to the built-in `repr()` function, considered as a sanitizer.
+   *
+   * `repr()` escapes special characters such as newlines (converting `\n` to the
+   * literal string `\\n`), which prevents log injection.
+   */
+  class ReprCallSanitizer extends Sanitizer, DataFlow::CallCfgNode {
+    ReprCallSanitizer() { this = API::builtin("repr").getACall() }
   }
 }
