@@ -14,6 +14,7 @@
 
 import java
 import semmle.code.java.security.CommandLineQuery
+import semmle.code.java.security.ControlledString
 import semmle.code.java.security.ExternalProcess
 
 /**
@@ -22,13 +23,7 @@ import semmle.code.java.security.ExternalProcess
  * has in it.
  */
 predicate saneString(Expr expr) {
-  expr instanceof StringLiteral
-  or
-  expr instanceof NullLiteral
-  or
-  exists(Variable var | var.getAnAccess() = expr and exists(var.getAnAssignedValue()) |
-    forall(Expr other | var.getAnAssignedValue() = other | saneString(other))
-  )
+  controlledString(expr)
 }
 
 predicate builtFromUncontrolledConcat(Expr expr) {
