@@ -30,7 +30,16 @@ class LogInjectionAdditionalTaintStep extends Unit {
 }
 
 private class DefaultLogInjectionSink extends LogInjectionSink {
-  DefaultLogInjectionSink() { sinkNode(this, "log-injection") }
+  DefaultLogInjectionSink() {
+    sinkNode(this, "log-injection") and
+    not exists(MethodCall mc |
+      this.asExpr() = mc.getAnArgument() and
+      mc.getMethod().getName() in [
+        "debug", "trace", // SLF4J, Log4j, Commons Logging, JBoss Logging
+        "fine", "finer", "finest" // java.util.logging
+      ]
+    )
+  }
 }
 
 private class DefaultLogInjectionSanitizer extends LogInjectionSanitizer instanceof SimpleTypeSanitizer
