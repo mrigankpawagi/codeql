@@ -14,8 +14,12 @@
 import java
 import semmle.code.java.security.LogInjectionQuery
 import LogInjectionFlow::PathGraph
+private import semmle.code.java.dataflow.internal.ModelExclusions
 
 from LogInjectionFlow::PathNode source, LogInjectionFlow::PathNode sink
-where LogInjectionFlow::flowPath(source, sink)
+where
+  LogInjectionFlow::flowPath(source, sink) and
+  // Exclude sinks in test files - log injection in tests is not a real vulnerability.
+  not isInTestFile(sink.getNode().asExpr().getFile())
 select sink.getNode(), source, sink, "This log entry depends on a $@.", source.getNode(),
   "user-provided value"

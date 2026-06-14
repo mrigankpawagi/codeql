@@ -36,6 +36,22 @@ private class DefaultLogInjectionSink extends LogInjectionSink {
 private class DefaultLogInjectionSanitizer extends LogInjectionSanitizer instanceof SimpleTypeSanitizer
 { }
 
+/**
+ * A call to `URLEncoder.encode()`, considered as a sanitizer.
+ *
+ * URL encoding replaces newline characters with `%0A` and `%0D`,
+ * which prevents log injection.
+ */
+private class UrlEncoderSanitizer extends LogInjectionSanitizer {
+  UrlEncoderSanitizer() {
+    exists(MethodCall mc |
+      mc.getMethod().getDeclaringType().hasQualifiedName("java.net", "URLEncoder") and
+      mc.getMethod().hasName("encode") and
+      this.asExpr() = mc
+    )
+  }
+}
+
 private class LineBreaksLogInjectionSanitizer extends LogInjectionSanitizer {
   LineBreaksLogInjectionSanitizer() {
     logInjectionSanitizer(this.asExpr())
