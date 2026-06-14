@@ -152,6 +152,52 @@ string getPatternOrValueString(DataFlow::Node node) {
   else result = node.toString()
 }
 
+/**
+ * Holds if `repl` is a backslash-escape that is used to escape regex special characters
+ * for constructing a regular expression (not for security sanitization).
+ *
+ * For example: `str.replace(/\$/g, '\\$')` used before `new RegExp(str)` is escaping
+ * a regex metacharacter, not performing security sanitization, so missing backslash
+ * escaping is not a concern.
+ */
+predicate isRegExpMetacharEscape(StringReplaceCall repl) {
+  isBackslashEscape(repl, _) and
+  exists(string matched | matched = getAMatchedString(repl.getRegExp()) |
+    // The matched character is a regex special character (not a security-relevant metachar)
+    matched = ["$", "[", "]", "(", ")", "{", "}", ".", "+", "*", "?", "^", "|", "/"]
+  ) and
+  (
+    // The result flows into a RegExp constructor or is used in a regex context
+    exists(DataFlow::InvokeNode regexpCall |
+      regexpCall = DataFlow::globalVarRef("RegExp").getAnInstantiation()
+    |
+      repl.(DataFlow::MethodCallNode).flowsTo(regexpCall.getArgument(0))
+    )
+    or
+    // Or the replacement only escapes a single regex metacharacter (not security-related)
+    exists(string matched | matched = getAMatchedString(repl.getRegExp()) |
+      matched = ["$", "[", "]", "(", ")", ".", "+", "*", "?", "^", "|", "/"] and
+      not matched = ["'", "\"", "\\", "&", "<", ">"]
+    )
+  )
+}
+
+/**
+ * Holds if `repl` is a backslash-escape used purely to escape quote characters
+ * for string interpolation contexts (e.g., building JSON or template strings),
+ * where the input is known not to contain backslashes.
+ */
+predicate isQuoteEscapeForInterpolation(StringReplaceCall repl) {
+  isBackslashEscape(repl, _) and
+  exists(string matched | matched = getAMatchedString(repl.getRegExp()) |
+    matched = "\""
+  ) and
+  // The result is used in a template literal or string concatenation (not as a sanitizer)
+  exists(TemplateLiteral tl |
+    repl.(DataFlow::MethodCallNode).flowsTo(DataFlow::valueNode(tl.getAnElement()))
+  )
+}
+
 from StringReplaceCall repl, DataFlow::Node old, string msg
 where
   (old = repl.getArgument(0) or old = repl.getRegExp()) and
@@ -184,6 +230,10 @@ where
     or
     isBackslashEscape(repl, _) and
     not allBackslashesEscaped(repl) and
+    // Don't flag regex metacharacter escaping (e.g., escaping $ for RegExp construction)
+    not isRegExpMetacharEscape(repl) and
+    // Don't flag quote escaping in template literal interpolation contexts
+    not isQuoteEscapeForInterpolation(repl) and
     msg = "This does not escape backslash characters in the input."
   )
 select repl.getCalleeNode(), msg
