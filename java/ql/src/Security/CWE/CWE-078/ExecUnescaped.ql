@@ -15,20 +15,18 @@
 import java
 import semmle.code.java.security.CommandLineQuery
 import semmle.code.java.security.ExternalProcess
+import semmle.code.java.security.ControlledString
+import semmle.code.java.dataflow.internal.ModelExclusions
 
 /**
- * Strings that are known to be sane by some simple local analysis. Such strings
- * do not need to be escaped, because the programmer can predict what the string
- * has in it.
+ * Strings that are known to be sane (controlled or compile-time constant).
+ * Such strings do not need to be escaped, because the programmer can predict
+ * what the string has in it.
  */
 predicate saneString(Expr expr) {
-  expr instanceof StringLiteral
+  controlledString(expr)
   or
-  expr instanceof NullLiteral
-  or
-  exists(Variable var | var.getAnAccess() = expr and exists(var.getAnAssignedValue()) |
-    forall(Expr other | var.getAnAssignedValue() = other | saneString(other))
-  )
+  expr instanceof CompileTimeConstantExpr
 }
 
 predicate builtFromUncontrolledConcat(Expr expr) {
@@ -48,5 +46,6 @@ predicate builtFromUncontrolledConcat(Expr expr) {
 from StringArgumentToExec argument
 where
   builtFromUncontrolledConcat(argument) and
-  not execIsTainted(_, _, argument)
+  not execIsTainted(_, _, argument) and
+  not isInTestFile(argument.getFile())
 select argument, "Command line is built with string concatenation."
