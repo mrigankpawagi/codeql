@@ -133,7 +133,10 @@ private predicate isHostComparisonSanitizer(Guard guard, Expr e, boolean branch)
       branch = true and
       exists(MethodCall hostCall |
         hostCall = [equalsCall.getQualifier(), equalsCall.getArgument(0)] and
-        hostCall.getMethod().hasQualifiedName("java.net", "URI", "getHost") and
+        (
+          hostCall.getMethod().hasQualifiedName("java.net", "URI", "getHost") or
+          hostCall.getMethod().hasQualifiedName("java.net", "URL", "getHost")
+        ) and
         e = hostCall.getQualifier()
       )
     )
