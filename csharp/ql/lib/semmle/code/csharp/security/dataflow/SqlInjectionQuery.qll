@@ -87,3 +87,24 @@ private class ExternalSqlInjectionSanitizer extends Sanitizer {
 private class SimpleTypeSanitizer extends Sanitizer, SimpleTypeSanitizedExpr { }
 
 private class GuidSanitizer extends Sanitizer, GuidSanitizedExpr { }
+
+/**
+ * A sanitizer for Entity Framework Core's interpolated SQL methods.
+ * Methods like `FromSqlInterpolated` and `ExecuteSqlInterpolated` accept
+ * `FormattableString` parameters and properly parameterize interpolated values,
+ * making them safe from SQL injection.
+ */
+private class EfCoreInterpolatedSanitizer extends Sanitizer {
+  EfCoreInterpolatedSanitizer() {
+    exists(MethodCall mc |
+      mc.getTarget().getName() in [
+        "FromSqlInterpolated", "ExecuteSqlInterpolated", "ExecuteSqlInterpolatedAsync"
+      ] and
+      mc.getTarget()
+          .getDeclaringType()
+          .hasQualifiedName("Microsoft.EntityFrameworkCore",
+            ["RelationalDatabaseFacadeExtensions", "RelationalQueryableExtensions"]) and
+      this.getExpr() = mc.getAnArgument()
+    )
+  }
+}
