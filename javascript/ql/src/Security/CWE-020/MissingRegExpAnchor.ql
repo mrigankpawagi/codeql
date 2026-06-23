@@ -47,10 +47,23 @@ import MissingRegExpAnchor::Make<TreeImpl, HostnameRegexp::Impl, Impl>
 
 from DataFlow::Node nd, string msg
 where
-  isUnanchoredHostnameRegExp(nd, msg)
-  or
-  isSemiAnchoredHostnameRegExp(nd, msg)
-  or
-  hasMisleadingAnchorPrecedence(nd, msg)
-// isLineAnchoredHostnameRegExp is not used here, as it is not relevant to JS.
+  (
+    isUnanchoredHostnameRegExp(nd, msg)
+    or
+    isSemiAnchoredHostnameRegExp(nd, msg)
+    or
+    hasMisleadingAnchorPrecedence(nd, msg)
+  ) and
+  // Exclude patterns used with .test() where unanchored alternatives are simple words
+  // (no dots), indicating intentional partial matching for role/type checks, not URL validation
+  not exists(DataFlow::MethodCallNode testCall |
+    testCall.getMethodName() = "test" and
+    nd.(DataFlow::RegExpCreationNode).getARegExpObject().flowsTo(testCall.getReceiver()) and
+    forall(RegExpTerm alt |
+      alt = nd.(DataFlow::RegExpCreationNode).getRoot().(RegExpAlt).getAChild() and
+      not alt.getAChild*() instanceof RegExpAnchor
+    |
+      not alt.getAChild*().(RegExpConstant).getValue().matches("%.%")
+    )
+  )
 select nd, msg
