@@ -70,6 +70,16 @@ private module StackTraceStringToHttpResponseSinkFlowConfig implements DataFlow:
   predicate isSource(DataFlow::Node src) { stackTraceExpr(_, src.asExpr()) }
 
   predicate isSink(DataFlow::Node sink) { sink instanceof InformationLeakSink }
+
+  predicate isBarrier(DataFlow::Node node) {
+    exists(MethodCall logCall |
+      node.asExpr() = logCall.getAnArgument() and
+      logCall.getMethod().getDeclaringType().hasQualifiedName(["org.slf4j", "org.apache.logging.log4j", "org.apache.log4j", "java.util.logging"],
+        ["Logger", "Log", "LogRecord"]) and
+      logCall.getMethod().getName() in ["trace", "debug", "info", "warn", "error", "fatal", "log",
+        "severe", "warning", "fine", "finer", "finest"]
+    )
+  }
 }
 
 private module StackTraceStringToHttpResponseSinkFlow =
