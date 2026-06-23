@@ -27,3 +27,13 @@ const server = http.createServer((req, res) => {
         console.error(`[ERROR] Error: "${error}"`);
     }
 });
+
+const debug = require('debug')('app');
+
+const server_debug = http.createServer((req, res) => {
+    let q = url.parse(req.url, true);
+    let username = q.query.username;
+
+    // OK - debug package is not a production logger
+    debug('User: %s', username);
+});

@@ -61,7 +61,12 @@ class RemoteSource extends Source instanceof RemoteFlowSource {
  * An argument to a logging mechanism.
  */
 class LoggingSink extends Sink {
-  LoggingSink() { this = any(LoggerCall console).getAMessageComponent() }
+  LoggingSink() {
+    exists(LoggerCall logger |
+      this = logger.getAMessageComponent() and
+      not logger = API::moduleImport("debug").getReturn().getACall()
+    )
+  }
 }
 
 /**
