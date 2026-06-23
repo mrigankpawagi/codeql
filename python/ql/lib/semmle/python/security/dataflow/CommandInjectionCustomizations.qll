@@ -10,6 +10,7 @@ private import semmle.python.Concepts
 private import semmle.python.dataflow.new.RemoteFlowSources
 private import semmle.python.dataflow.new.BarrierGuards
 private import semmle.python.frameworks.data.ModelsAsData
+private import semmle.python.ApiGraphs
 
 /**
  * Provides default sources, sinks and sanitizers for detecting
@@ -101,5 +102,17 @@ module CommandInjection {
    */
   class SanitizerFromModel extends Sanitizer {
     SanitizerFromModel() { ModelOutput::barrierNode(this, "command-injection") }
+  }
+
+  /**
+   * A call to `shlex.quote` or `pipes.quote`, considered as a sanitizer.
+   * These functions properly escape shell metacharacters, preventing command injection.
+   */
+  class ShellQuoteSanitizer extends Sanitizer {
+    ShellQuoteSanitizer() {
+      this = API::moduleImport("shlex").getMember("quote").getACall()
+      or
+      this = API::moduleImport("pipes").getMember("quote").getACall()
+    }
   }
 }
