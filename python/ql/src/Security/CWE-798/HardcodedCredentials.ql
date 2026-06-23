@@ -64,7 +64,9 @@ predicate maybeCredential(ControlFlowNode f) {
     ) and
     not possible_reflective_name(str.getText()) and
     not capitalized_word(str) and
-    not format_string(str)
+    not format_string(str) and
+    /* Not a dotted Python module/class path (e.g., "django.contrib.auth.hashers.PBKDF2PasswordHasher") */
+    not str.getText().regexpMatch("[a-zA-Z_][a-zA-Z0-9_]*(\\.[a-zA-Z_][a-zA-Z0-9_]*){2,}")
   )
   or
   /* Or, an integer with over 32 bits */
