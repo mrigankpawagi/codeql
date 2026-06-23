@@ -10,6 +10,7 @@ private import semmle.python.Concepts
 private import semmle.python.frameworks.data.ModelsAsData
 private import semmle.python.dataflow.new.RemoteFlowSources
 private import semmle.python.dataflow.new.BarrierGuards
+private import semmle.python.ApiGraphs
 
 /**
  * Provides default sources, sinks and sanitizers for detecting
@@ -90,5 +91,16 @@ module ReflectedXss {
    */
   class SanitizerFromModel extends Sanitizer {
     SanitizerFromModel() { ModelOutput::barrierNode(this, ["html-injection", "js-injection"]) }
+  }
+
+  /**
+   * A call to `json.dumps()`, considered as a sanitizer.
+   * The output of json.dumps is JSON-formatted data typically returned
+   * with application/json Content-Type, which browsers do not render as HTML.
+   */
+  class JsonDumpsSanitizer extends Sanitizer {
+    JsonDumpsSanitizer() {
+      this = API::moduleImport("json").getMember("dumps").getACall()
+    }
   }
 }
