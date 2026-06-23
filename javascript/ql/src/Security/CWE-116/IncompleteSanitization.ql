@@ -101,6 +101,18 @@ predicate removesFirstOccurrence(StringReplaceCall repl, string str) {
 }
 
 /**
+ * Holds if `repl` removes a single character `str` (either via a string argument or a regex).
+ */
+predicate removesCharacter(StringReplaceCall repl, string str) {
+  removesFirstOccurrence(repl, str)
+  or
+  exists(DataFlow::Node re | re = repl.getRegExp() |
+    getAMatchedString(re) = str and
+    repl.replaces(str, "")
+  )
+}
+
+/**
  * Holds if `leftUnwrap` and `rightUnwrap` unwraps a string from a pair of surrounding delimiters.
  */
 predicate isDelimiterUnwrapper(
@@ -117,8 +129,8 @@ predicate isDelimiterUnwrapper(
     or
     left = "'" and right = "'"
   |
-    removesFirstOccurrence(leftUnwrap, left) and
-    removesFirstOccurrence(rightUnwrap, right) and
+    removesCharacter(leftUnwrap, left) and
+    removesCharacter(rightUnwrap, right) and
     leftUnwrap.getAMethodCall() = rightUnwrap
   )
 }
