@@ -137,8 +137,15 @@ function goodOrBad12(s) {
 
 	s = s.replace('[', '');
 	s = s.replace(']', '');
-	s.replace(/{/, '').replace(/}/, ''); // $ Alert[js/incomplete-sanitization] - should have used a string literal if a single replacement was intended
+	s.replace(/{/, '').replace(/}/, ''); // bracket pair removal via regex - no alert expected
 	s.replace(']', '').replace('[', ''); // $ Alert[js/incomplete-sanitization] - probably OK, but still flagged
+}
+
+function goodBracketPairRegex(s) {
+	// Bracket pair removal via regex should not be flagged
+	s.replace(/\[/, '').replace(/\]/, '');
+	s.replace(/\{/, '').replace(/\}/, '');
+	s.replace(/\(/, '').replace(/\)/, '');
 }
 
 function newlines(s) {
