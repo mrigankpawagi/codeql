@@ -9,6 +9,7 @@ private import semmle.python.dataflow.new.DataFlow
 private import semmle.python.Concepts
 private import semmle.python.dataflow.new.RemoteFlowSources
 private import semmle.python.dataflow.new.BarrierGuards
+private import semmle.python.ApiGraphs
 
 /**
  * Provides default sources, and sinks for detecting
@@ -104,5 +105,15 @@ module PathInjection {
    */
   class SanitizerFromModel extends Sanitizer {
     SanitizerFromModel() { ModelOutput::barrierNode(this, "path-injection") }
+  }
+
+  /**
+   * A call to `django.utils._os.safe_join`, which validates that the resulting path
+   * stays within the base directory, considered as a sanitizer.
+   */
+  class DjangoSafeJoinSanitizer extends Sanitizer {
+    DjangoSafeJoinSanitizer() {
+      this = API::moduleImport("django").getMember("utils").getMember("_os").getMember("safe_join").getACall()
+    }
   }
 }
