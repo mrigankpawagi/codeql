@@ -45,12 +45,32 @@ private module Impl implements
 
 import MissingRegExpAnchor::Make<TreeImpl, HostnameRegexp::Impl, Impl>
 
+/**
+ * Holds if `src` is a pattern that plausibly matches a hostname or URL,
+ * as indicated by the presence of a dot character in the pattern (either an
+ * escaped literal dot `\.` or an unescaped dot `.` used as a wildcard).
+ *
+ * Hostname patterns inherently contain dots (e.g., `example\.com` or `example.com`),
+ * whereas patterns matching simple strings, module names, or CLI arguments
+ * typically do not contain dots.
+ */
+private predicate looksLikeHostnamePattern(RegExpPatternSource src) {
+  exists(RegExpTerm term |
+    term = src.getRegExpTerm().getAChild*() and
+    (
+      term.(RegExpConstant).getValue() = "."
+      or
+      term instanceof RegExpDot
+    )
+  )
+}
+
 from DataFlow::Node nd, string msg
 where
   isUnanchoredHostnameRegExp(nd, msg)
   or
   isSemiAnchoredHostnameRegExp(nd, msg)
   or
-  hasMisleadingAnchorPrecedence(nd, msg)
+  hasMisleadingAnchorPrecedence(nd, msg) and looksLikeHostnamePattern(nd)
 // isLineAnchoredHostnameRegExp is not used here, as it is not relevant to JS.
 select nd, msg
