@@ -13,9 +13,12 @@
 
 import java
 import semmle.code.java.security.LogInjectionQuery
+import semmle.code.java.dataflow.internal.ModelExclusions
 import LogInjectionFlow::PathGraph
 
 from LogInjectionFlow::PathNode source, LogInjectionFlow::PathNode sink
-where LogInjectionFlow::flowPath(source, sink)
+where
+  LogInjectionFlow::flowPath(source, sink) and
+  not isInTestFile(sink.getNode().getLocation().getFile())
 select sink.getNode(), source, sink, "This log entry depends on a $@.", source.getNode(),
   "user-provided value"

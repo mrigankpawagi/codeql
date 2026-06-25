@@ -30,11 +30,35 @@ class LogInjectionAdditionalTaintStep extends Unit {
 }
 
 private class DefaultLogInjectionSink extends LogInjectionSink {
-  DefaultLogInjectionSink() { sinkNode(this, "log-injection") }
+  DefaultLogInjectionSink() {
+    sinkNode(this, "log-injection") and
+    not exists(MethodCall mc |
+      this.asExpr() = mc.getAnArgument() and
+      mc.getMethod().getName() in [
+        "debug", "trace", // SLF4J, Log4j, Commons Logging, JBoss Logging
+        "fine", "finer", "finest" // java.util.logging
+      ]
+    )
+  }
 }
 
 private class DefaultLogInjectionSanitizer extends LogInjectionSanitizer instanceof SimpleTypeSanitizer
 { }
+
+/**
+ * A call to `java.net.URLEncoder.encode(...)` is considered a sanitizer for log injection,
+ * since URL encoding replaces line breaks and other special characters with percent-encoded
+ * equivalents that cannot be used to forge log entries.
+ */
+private class UrlEncoderSanitizer extends LogInjectionSanitizer {
+  UrlEncoderSanitizer() {
+    exists(MethodCall mc |
+      mc.getMethod().getDeclaringType().hasQualifiedName("java.net", "URLEncoder") and
+      mc.getMethod().hasName("encode") and
+      this.asExpr() = mc
+    )
+  }
+}
 
 private class LineBreaksLogInjectionSanitizer extends LogInjectionSanitizer {
   LineBreaksLogInjectionSanitizer() {
