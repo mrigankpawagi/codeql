@@ -16,6 +16,7 @@ import java
 import semmle.code.java.security.SqlConcatenatedLib
 import semmle.code.java.security.SqlInjectionQuery
 import semmle.code.java.security.SqlConcatenatedQuery
+private import semmle.code.java.dataflow.internal.ModelExclusions
 
 from QueryInjectionSink query, Expr uncontrolled
 where
@@ -27,6 +28,9 @@ where
       UncontrolledStringBuilderSourceFlow::flow(DataFlow::exprNode(sbv.getToStringCall()), query)
     )
   ) and
-  not queryIsTaintedBy(query, _, _)
+  not queryIsTaintedBy(query, _, _) and
+  // Exclude test files: SQL concatenation in tests is typically for test setup
+  // and does not represent a real security vulnerability.
+  not isInTestFile(query.asExpr().getFile())
 select query, "Query built by concatenation with $@, which may be untrusted.", uncontrolled,
   "this expression"
