@@ -26,6 +26,33 @@ predicate saneString(Expr expr) {
   or
   expr instanceof NullLiteral
   or
+  // Primitive types (int, long, short, byte, char, float, double, boolean) cannot contain
+  // shell metacharacters when converted to strings.
+  expr.getType() instanceof PrimitiveType
+  or
+  // Boxed types (Integer, Long, etc.) produce only digits/dots/minus when converted to strings.
+  expr.getType() instanceof BoxedType
+  or
+  // Enum constants are compile-time known values.
+  expr.(VarAccess).getVariable() instanceof EnumConstant
+  or
+  // Calls to methods that return inherently safe values.
+  exists(Method m | m = expr.(MethodCall).getMethod() |
+    // Class.getName(), Class.getCanonicalName(), Class.getSimpleName() return valid Java identifiers.
+    m instanceof ClassNameMethod
+    or
+    m instanceof ClassSimpleNameMethod
+    or
+    m.hasName("getCanonicalName") and m.getDeclaringType() instanceof TypeClass
+    or
+    // System.getProperty(...) returns JVM-controlled system properties.
+    m instanceof MethodSystemGetProperty
+    or
+    // Process.pid() and ProcessHandle.pid() return numeric process IDs.
+    (m.hasName("pid") or m.hasName("getPid")) and
+    m.getReturnType() instanceof PrimitiveType
+  )
+  or
   exists(Variable var | var.getAnAccess() = expr and exists(var.getAnAssignedValue()) |
     forall(Expr other | var.getAnAssignedValue() = other | saneString(other))
   )
