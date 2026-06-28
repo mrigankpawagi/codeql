@@ -57,5 +57,18 @@ query predicate problems(
     // the trailing port or slash makes the prefix-check safe
     check instanceof StringOps::StartsWith and
     target.regexpMatch(".*(:[0-9]+|/)")
+    or
+    // Checks on a parsed URL's host or hostname property are safe,
+    // since the host is already isolated from path/query components.
+    exists(DataFlow::PropRead hostRead |
+      hostRead.getPropertyName() in ["host", "hostname"] and
+      (
+        check.(StringOps::EndsWith).getBaseString().getALocalSource() = hostRead
+        or
+        check.(StringOps::Includes).getBaseString().getALocalSource() = hostRead
+        or
+        check.(StringOps::StartsWith).getBaseString().getALocalSource() = hostRead
+      )
+    )
   )
 }
