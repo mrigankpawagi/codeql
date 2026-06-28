@@ -93,6 +93,24 @@ predicate controlledString(Expr expr) {
     or
     expr instanceof ValidatedVariableAccess
     or
+    // Method calls on objects created with all-literal constructor arguments
+    // e.g., new Sha256Hash("admin").toHex(), new SimpleDateFormat("yyyy").format(...)
+    exists(MethodCall mc | mc = expr |
+      controlledString(mc.getQualifier()) and
+      forall(Expr arg | arg = mc.getAnArgument() | controlledString(arg))
+    )
+    or
+    // Constructor calls (ClassInstanceExpr) with all controlled arguments
+    exists(ClassInstanceExpr cie | cie = expr |
+      forall(Expr arg | arg = cie.getAnArgument() | controlledString(arg))
+    )
+    or
+    // Static final fields are effectively constants
+    exists(Field f | expr = f.getAnAccess() |
+      f.isStatic() and f.isFinal() and
+      f.getDeclaringType() instanceof Class
+    )
+    or
     forex(Expr other | controlledStringLimitedProp(other, expr) | controlledString(other))
   ) and
   not expr instanceof TypeAccess
